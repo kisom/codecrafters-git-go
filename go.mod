@@ -7,3 +7,10 @@
 module github.com/kisom/codecrafters/git-go
 
 go 1.22
+
+require (
+	git.wntrmute.dev/kyle/goutils v1.7.4
+	github.com/pkg/errors v0.9.1
+)
+
+require golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect

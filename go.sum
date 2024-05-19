@@ -1,0 +1,6 @@
+git.wntrmute.dev/kyle/goutils v1.7.4 h1:kbvUoxRwAEemz4jL52AUKaOipuCX8F8PGTQHS5V3lRY=
+git.wntrmute.dev/kyle/goutils v1.7.4/go.mod h1:1PGn83Ac98KWyI6yfpCVyP1Ji61PX6lFpROxY+IoTJg=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+golang.org/x/sys v0.0.0-20220412211240-33da011f77ad h1:ntjMns5wyP/fN65tdBD4g8J5w8n015+iIIs9rtjXkY0=
+golang.org/x/sys v0.0.0-20220412211240-33da011f77ad/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=

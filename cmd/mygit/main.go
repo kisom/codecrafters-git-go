@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/kisom/codecrafters/git-go/catfile"
 	"os"
 	// Uncomment this block to pass the first stage!
 	// "os"
@@ -18,6 +19,8 @@ func main() {
 	}
 
 	switch command := os.Args[1]; command {
+	case "cat-file":
+		catfile.Run(os.Args[2:])
 	case "init":
 		for _, dir := range []string{".git", ".git/objects", ".git/refs"} {
 			if err := os.MkdirAll(dir, 0755); err != nil {
@@ -25,7 +28,7 @@ func main() {
 			}
 		}
 
-		headFileContents := []byte("ref: refs/heads/main\n")
+		headFileContents := []byte("ref: refs/heads/master\n")
 		if err := os.WriteFile(".git/HEAD", headFileContents, 0644); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing file: %s\n", err)
 		}
