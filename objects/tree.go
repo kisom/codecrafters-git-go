@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"git.wntrmute.dev/kyle/goutils/die"
-	"github.com/kisom/codecrafters/git-go/kgit"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -41,7 +41,8 @@ type TreeEntry struct {
 
 func (e *TreeEntry) Raw() []byte {
 	// <mode> <name>\0<20_byte_sha>
-	raw := append([]byte(fmt.Sprintf("%s %s\x00", modeToString[e.Mode], e.Name)), e.Hash...)
+	raw := []byte(fmt.Sprintf("%s %s\x00", modeToString[e.Mode], e.Name))
+	raw = append(raw, e.Hash...)
 	return raw
 }
 
@@ -56,6 +57,9 @@ func (e *TreeEntry) String() string {
 }
 
 func entryFromBytes(a, b []byte) *TreeEntry {
+	if len(b) != 20 {
+		panic("bad hash length")
+	}
 	entry := &TreeEntry{}
 	s := strings.Fields(string(a))
 	entry.Mode = modeFromString[s[0]]
@@ -64,12 +68,27 @@ func entryFromBytes(a, b []byte) *TreeEntry {
 	return entry
 }
 
+type treeEntries []*TreeEntry
+
+func (e treeEntries) Len() int      { return len(e) }
+func (e treeEntries) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
+func (e treeEntries) Less(i, j int) bool {
+	if e[i].Mode != e[j].Mode {
+		if e[i].Mode == modeDirectory {
+			return true
+		} else if e[j].Mode == modeDirectory {
+			return false
+		}
+	}
+	return e[i].Name < e[j].Name
+}
+
 type Tree struct {
-	entries []*TreeEntry
+	entries treeEntries
 }
 
 func (tree *Tree) Hash() []byte {
-	hash := sha1.Sum(tree.Raw())
+	hash := sha1.Sum(tree.rawEntries())
 	return hash[:]
 }
 
@@ -115,9 +134,9 @@ func (tree *Tree) ObjectType() string {
 	return TypeTree
 }
 
-func scanEntries(contents []byte) [][]byte {
-	lines := [][]byte{}
+func scanEntries(contents []byte) []*TreeEntry {
 	line := []byte{}
+	entries := []*TreeEntry{}
 
 	for i := 0; i < len(contents); i++ {
 		if contents[i] != '\x00' {
@@ -125,30 +144,23 @@ func scanEntries(contents []byte) [][]byte {
 			continue
 		}
 
-		lines = append(lines, line)
 		i++
+		entry := entryFromBytes(line, contents[i:i+20])
 		line = []byte{}
-		if len(contents[i:]) < 20 {
-			panic("invalid tree has incomplete hash")
-		}
-
-		line = append(line, contents[i:i+20]...)
 		i += 20
+		entries = append(entries, entry)
 	}
 
 	if len(line) > 0 {
-		lines = append(lines, line)
+		panic("leftover data: " + string(line))
 	}
-	return lines
+	return entries
 }
 
 func TreeFromBlob(blob *Blob) (*Tree, error) {
 	tree := &Tree{}
-
-	entryData := kgit.Scanner(blob.Contents)
-	for i := 0; i < len(entryData); i += 2 {
-		tree.entries = append(tree.entries, entryFromBytes(entryData[i], entryData[i+1]))
-	}
+	tree.entries = scanEntries(blob.Contents)
+	sort.Sort(tree.entries)
 
 	return tree, nil
 }

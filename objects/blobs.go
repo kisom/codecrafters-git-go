@@ -66,7 +66,16 @@ func (blob *Blob) Write() error {
 		return errors.Wrap(err, "couldn't create parent directory "+parent)
 	}
 
-	err = os.WriteFile(path, blob.Raw(), 0644)
+	file, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "couldn't create file "+path)
+	}
+	defer file.Close()
+
+	encoder := zlib.NewWriter(file)
+	defer encoder.Close()
+
+	_, err = io.Copy(encoder, bytes.NewReader(blob.Raw()))
 	if err != nil {
 		return errors.Wrap(err, "couldn't write to file "+path)
 	}
