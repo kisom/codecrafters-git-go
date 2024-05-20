@@ -23,6 +23,12 @@ func main() {
 		objects.CatFile(os.Args[2:])
 	case "hash-object":
 		objects.Hash(os.Args[2:])
+	case "ls-tree":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "usage: mygit <command> [<args>...]\n")
+			os.Exit(1)
+		}
+		objects.ListTree(os.Args[2:])
 	case "init":
 		for _, dir := range []string{".git", ".git/objects", ".git/refs"} {
 			if err := os.MkdirAll(dir, 0755); err != nil {

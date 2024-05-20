@@ -9,7 +9,7 @@ func TestReadBlob(t *testing.T) {
 	objectID := "176a458f94e0ea5272ce67c36bf30b6be9caf623"
 	objectContents := "blob 12\x00* text=auto\n"
 
-	blob, err := readBlob(objectID)
+	blob, err := ReadBlobWithID(objectID)
 	if err != nil {
 		t.Fatalf("failed to read blob: %v", err)
 	}

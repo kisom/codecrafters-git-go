@@ -9,7 +9,7 @@ module github.com/kisom/codecrafters/git-go
 go 1.22
 
 require (
-	git.wntrmute.dev/kyle/goutils v1.7.4
+	git.wntrmute.dev/kyle/goutils v1.7.6-0.20240520035135-4cb6f5b6f069
 	github.com/pkg/errors v0.9.1
 )
 

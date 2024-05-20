@@ -15,173 +15,151 @@ import (
 	"strconv"
 )
 
+var _ Object = &Blob{}
+
 type Blob struct {
-	Size     int
+	Type     string
 	Contents []byte
-	hash     []byte
 }
 
-func BlobFromFile(path string) (*Blob, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("objects: opening file %s", path))
-	}
-	defer file.Close()
-
-	blob := &Blob{}
-	blob.Contents, err = io.ReadAll(file)
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("objects: reading file %s", path))
-	}
-
-	blob.Size = len(blob.Contents)
-	return blob, nil
+func (blob *Blob) Header() []byte {
+	return []byte(fmt.Sprintf("%s %d", blob.Type, blob.Size()))
 }
 
-func BlobFromBytes(bytes []byte) *Blob {
-	blob := &Blob{}
-	blob.Contents = bytes
-	blob.Size = len(bytes)
-	return blob
-}
-
-func (b *Blob) String() string {
-	return string(b.Contents)
-}
-
-func (b *Blob) Header() []byte {
-	return []byte(fmt.Sprintf("blob %d", b.Size))
-}
-
-func (b *Blob) Raw() []byte {
-	raw := b.Header()
-	raw = append(raw, 0)
-	raw = append(raw, b.Contents...)
+func (blob *Blob) Raw() []byte {
+	raw := append(blob.Header(), 0)
+	raw = append(raw, blob.Contents...)
 	return raw
 }
 
-func (b *Blob) Hash() []byte {
-	if b.hash == nil {
-		h := sha1.Sum(b.Raw())
-		b.hash = h[:]
-	}
-
-	return b.hash
+func (blob *Blob) Hash() []byte {
+	hash := sha1.Sum(blob.Raw())
+	return hash[:]
 }
 
-func (b *Blob) Decode(r io.Reader) error {
-	decoder, err := zlib.NewReader(r)
-	if err != nil {
-		return errors.Wrap(err, "objects: couldn't create zlib decoder")
-	}
-	defer decoder.Close()
-
-	var header []byte
-	for {
-		b := [1]byte{0}
-		_, err = decoder.Read(b[:])
-		if err == io.EOF {
-			break
-		}
-
-		if b[0] == 0 {
-			break
-		}
-
-		header = append(header, b[0])
-	}
-
-	if !bytes.HasPrefix(header, []byte("blob ")) {
-		return errors.New("objects: blob has an invalid header")
-	}
-
-	size, err := strconv.Atoi(string(header[5:]))
-	if err != nil {
-		return fmt.Errorf("objects: blob has an unreadable size: %#v", header[5:])
-	}
-
-	data := make([]byte, size)
-	n, err := decoder.Read(data)
-	if err != nil && err != io.EOF {
-		return errors.Wrap(err, "objects: failed to decompress blob")
-	}
-
-	if n != size {
-		return fmt.Errorf("objects: blob has an invalid size: %d, but want %d", n, size)
-	}
-
-	b.Size = size
-	b.Contents = data
-
-	return nil
+func (blob *Blob) HashString() string {
+	return fmt.Sprintf("%x", blob.Hash())
 }
 
-func (b *Blob) Encode(w io.Writer) error {
-	encoder := zlib.NewWriter(w)
-	defer encoder.Close()
-
-	_, err := encoder.Write(b.Raw())
-	if err != nil {
-		return errors.Wrap(err, "objects: failed to write blob")
-	}
-
-	return nil
+func (blob *Blob) Size() int {
+	return len(blob.Contents)
 }
 
-func (b *Blob) Write() error {
-	path, err := kgit.PathFromID(b.HashString())
+func (blob *Blob) String() string {
+	return string(blob.Contents)
+}
+
+func (blob *Blob) ObjectType() string {
+	return blob.Type
+}
+
+func (blob *Blob) Write() error {
+	id := blob.HashString()
+	path, err := kgit.PathFromID(id)
 	if err != nil {
-		return errors.Wrap(err, "objects: failed to build path")
+		return errors.Wrap(err, "couldn't find git path")
 	}
 
 	parent := filepath.Dir(path)
-	err = os.MkdirAll(parent, 0644)
+	err = os.MkdirAll(parent, 0755)
 	if err != nil {
-		return errors.Wrap(err, "objects: failed to create directory "+parent)
+		return errors.Wrap(err, "couldn't create parent directory "+parent)
 	}
 
-	file, err := os.Create(path)
+	err = os.WriteFile(path, blob.Raw(), 0644)
 	if err != nil {
-		return errors.Wrap(err, "objects: failed to open file "+path)
+		return errors.Wrap(err, "couldn't write to file "+path)
 	}
-	defer file.Close()
 
-	return b.Encode(file)
+	return nil
 }
 
-func (b *Blob) HashString() string {
-	return fmt.Sprintf("%x", b.Hash())
-}
-
-func readBlob(id string) (*Blob, error) {
+func ReadBlobWithID(id string) (*Blob, error) {
 	path, err := kgit.PathFromID(id)
 	if err != nil {
-		return nil, errors.Wrap(err, "objects: while trying to read blob "+id)
+		return nil, errors.Wrap(err, "couldn't get path from id "+id)
 	}
 
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't open file with id "+id)
+	}
+
+	defer file.Close()
+
+	decoder, err := zlib.NewReader(file)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create zlib reader")
+	}
+	defer decoder.Close()
+
+	contents, err := io.ReadAll(decoder)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't read object content for id "+id)
+	}
+
+	obj := &Blob{}
+	var header []byte
+
+	for i := range contents {
+		if contents[i] == 0x0 {
+			header = contents[:i]
+			obj.Contents = contents[i+1:]
+			break
+		}
+	}
+
+	headerParts := bytes.SplitN(header, []byte(" "), 2)
+	if len(headerParts) != 2 {
+		fmt.Fprintf(os.Stderr, "header has %d parts", len(headerParts))
+		return nil, errors.New("invalid object header for id " + id + ", header: " + string(header))
+	}
+
+	obj.Type = string(headerParts[0])
+	size, err := strconv.Atoi(string(headerParts[1]))
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid object header size for id "+id+", header: "+string(header))
+	}
+
+	if size != len(obj.Contents) {
+		return nil, fmt.Errorf("objects: header size mismatch: %d != %d", obj.Size(), len(obj.Contents))
+	}
+
+	return obj, nil
+}
+
+func NewBlobFromFile(path string) (*Blob, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't open file at  "+path)
 	}
 	defer file.Close()
 
-	blob := &Blob{}
-	err = blob.Decode(file)
+	contents, err := io.ReadAll(file)
 	if err != nil {
-		return nil, errors.Wrap(err, "objects: while trying to read blob "+id)
+		return nil, errors.Wrap(err, "couldn't read file at "+path)
 	}
 
-	return blob, nil
+	obj := &Blob{
+		Type:     "blob",
+		Contents: contents,
+	}
+
+	return obj, nil
+}
+
+func BlobFromBytes(content []byte) *Blob {
+	return &Blob{
+		Type:     "blob",
+		Contents: content[:],
+	}
 }
 
 func catBlob(id string) {
-	blob, err := readBlob(id)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "cat-file: couldn't read blob %s: %v", id, err)
-		os.Exit(1)
-	}
+	object, err := ReadBlobWithID(id)
+	die.If(err)
 
-	fmt.Printf("%s", blob)
+	fmt.Printf("%s", string(object.Contents))
 }
 
 func CatFile(args []string) {
@@ -209,7 +187,7 @@ func Hash(args []string) {
 
 	succeeded := true
 	for _, arg := range flagset.Args() {
-		blob, err := BlobFromFile(arg)
+		blob, err := NewBlobFromFile(arg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "objects: couldn't read source %s: %v\n", arg, err)
 			succeeded = false
