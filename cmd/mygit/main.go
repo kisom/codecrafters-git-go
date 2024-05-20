@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/kisom/codecrafters/git-go/catfile"
+	"github.com/kisom/codecrafters/git-go/objects"
 	"os"
 	// Uncomment this block to pass the first stage!
 	// "os"
@@ -20,7 +20,9 @@ func main() {
 
 	switch command := os.Args[1]; command {
 	case "cat-file":
-		catfile.Run(os.Args[2:])
+		objects.CatFile(os.Args[2:])
+	case "hash-object":
+		objects.Hash(os.Args[2:])
 	case "init":
 		for _, dir := range []string{".git", ".git/objects", ".git/refs"} {
 			if err := os.MkdirAll(dir, 0755); err != nil {

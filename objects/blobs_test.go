@@ -1,4 +1,4 @@
-package catfile
+package objects
 
 import (
 	"bytes"
@@ -17,5 +17,15 @@ func TestReadBlob(t *testing.T) {
 	raw := blob.Raw()
 	if !bytes.Equal(raw, []byte(objectContents)) {
 		t.Fatalf("blob contents don't match\nexpected: %v\nactual: %v", objectContents, raw)
+	}
+}
+
+func TestHashBlob(t *testing.T) {
+	objectID := "3b18e512dba79e4c8300dd08aeb37f8e728b8dad"
+	contents := []byte("hello world\n")
+
+	blob := BlobFromBytes(contents)
+	if blob.HashString() != objectID {
+		t.Fatalf("blob hash doesn't match\nexpected: %v\nactual: %v", objectID, blob.HashString())
 	}
 }
