@@ -1,18 +1,11 @@
 package objects
 
 import (
-	"bytes"
-	"compress/zlib"
 	"crypto/sha1"
 	"flag"
 	"fmt"
 	"git.wntrmute.dev/kyle/goutils/die"
-	"git.wntrmute.dev/kyle/goutils/fileutil"
-	"github.com/kisom/codecrafters/git-go/paths"
-	"github.com/pkg/errors"
-	"io"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -153,37 +146,14 @@ func (tree *Tree) ObjectType() string {
 }
 
 func (tree *Tree) Write() error {
-	path, err := paths.PathFromID(tree.HashString())
-	if err != nil {
-		return errors.Wrap(err, "while writing tree")
+	blob := BlobFromBytes(tree.rawEntries())
+	blob.Type = TypeTree
+
+	if blob.HashString() != tree.HashString() {
+		fmt.Fprintf(os.Stderr, "tree.Write: blob hash %s != tree hash %s", blob.HashString(), tree.HashString())
 	}
 
-	if fileutil.DirectoryDoesExist(path) {
-		return nil
-	}
-
-	parent := filepath.Dir(path)
-	if !fileutil.DirectoryDoesExist(parent) {
-		if err := os.MkdirAll(parent, 0755); err != nil {
-			return errors.Wrap(err, "while writing tree")
-		}
-	}
-
-	file, err := os.Create(path)
-	if err != nil {
-		return errors.Wrap(err, "while writing tree")
-	}
-	defer file.Close()
-
-	encoder := zlib.NewWriter(file)
-	defer encoder.Close()
-
-	_, err = io.Copy(encoder, bytes.NewReader(tree.Raw()))
-	if err != nil {
-		return errors.Wrap(err, "while writing tree")
-	}
-
-	return nil
+	return blob.Write()
 }
 
 func scanEntries(contents []byte) []*TreeEntry {
@@ -197,7 +167,6 @@ func scanEntries(contents []byte) []*TreeEntry {
 		}
 
 		i++
-		fmt.Fprintf(os.Stderr, "%s\n", string(line))
 		entry := entryFromBytes(line, contents[i:i+20])
 		line = []byte{}
 		i += 19

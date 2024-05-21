@@ -1,4 +1,4 @@
-package kgit
+package paths
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ const ObjectIDLength = 40
 
 func PathFromID(id string) (string, error) {
 	if len(id) != ObjectIDLength {
-		return "", fmt.Errorf("kgit: object ID `%s` want length %d, have %d", id, ObjectIDLength, len(id))
+		return "", fmt.Errorf("object ID `%s` want length %d, have %d", id, ObjectIDLength, len(id))
 	}
 	assert.Bool(len(id) == ObjectIDLength)
 
@@ -47,7 +47,7 @@ func FindGitRoot() (string, error) {
 		}
 
 		if cwd == "/" {
-			return "", errors.New("git repository not found; stopped searching at root directory")
+			return "", errors.New("repository not found; stopped searching at root directory")
 		}
 
 		if err = os.Chdir(".."); err != nil {
@@ -59,24 +59,4 @@ func FindGitRoot() (string, error) {
 			return "", errors.Wrap(err, "unable to determine current working directory")
 		}
 	}
-}
-
-func Scanner(contents []byte) [][]byte {
-	lines := [][]byte{}
-	line := []byte{}
-
-	for i := 0; i < len(contents); i++ {
-		if contents[i] != '\n' && contents[i] != '\x00' {
-			line = append(line, contents[i])
-			continue
-		}
-
-		lines = append(lines, line)
-		line = []byte{}
-	}
-
-	if len(line) > 0 {
-		lines = append(lines, line)
-	}
-	return lines
 }

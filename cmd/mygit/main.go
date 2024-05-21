@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"git.wntrmute.dev/kyle/goutils/die"
+	"github.com/kisom/codecrafters/git-go/git"
 	"github.com/kisom/codecrafters/git-go/objects"
 	"os"
 	// Uncomment this block to pass the first stage!
@@ -29,6 +31,10 @@ func main() {
 			os.Exit(1)
 		}
 		objects.ListTree(os.Args[2:])
+	case "write-tree":
+		hash, err := git.WriteTree()
+		die.If(err)
+		fmt.Println(hash)
 	case "init":
 		for _, dir := range []string{".git", ".git/objects", ".git/refs"} {
 			if err := os.MkdirAll(dir, 0755); err != nil {

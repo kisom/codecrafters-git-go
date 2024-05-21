@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"git.wntrmute.dev/kyle/goutils/die"
-	"github.com/kisom/codecrafters/git-go/kgit"
+	"github.com/kisom/codecrafters/git-go/paths"
 	"github.com/pkg/errors"
 	"io"
 	"os"
@@ -55,7 +55,7 @@ func (blob *Blob) ObjectType() string {
 
 func (blob *Blob) Write() error {
 	id := blob.HashString()
-	path, err := kgit.PathFromID(id)
+	path, err := paths.PathFromID(id)
 	if err != nil {
 		return errors.Wrap(err, "couldn't find git path")
 	}
@@ -84,7 +84,7 @@ func (blob *Blob) Write() error {
 }
 
 func ReadBlobWithID(id string) (*Blob, error) {
-	path, err := kgit.PathFromID(id)
+	path, err := paths.PathFromID(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't get path from id "+id)
 	}
@@ -120,7 +120,6 @@ func ReadBlobWithID(id string) (*Blob, error) {
 
 	headerParts := bytes.SplitN(header, []byte(" "), 2)
 	if len(headerParts) != 2 {
-		fmt.Fprintf(os.Stderr, "header has %d parts", len(headerParts))
 		return nil, errors.New("invalid object header for id " + id + ", header: " + string(header))
 	}
 
@@ -168,7 +167,7 @@ func catBlob(id string) {
 	object, err := ReadBlobWithID(id)
 	die.If(err)
 
-	fmt.Printf("%s", string(object.Contents))
+	fmt.Print(object)
 }
 
 func CatFile(args []string) {

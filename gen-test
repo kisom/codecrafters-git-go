@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ -e /tmp/git ]
+then
+	rm -r /tmp/git
+fi
+
+mkdir /tmp/git
+cd /tmp/git
+mygit init
+rsync -auq  ~/tmp/git/ /tmp/git/
+
