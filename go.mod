@@ -10,6 +10,7 @@ go 1.22
 
 require (
 	git.wntrmute.dev/kyle/goutils v1.7.6-0.20240520035135-4cb6f5b6f069
+	github.com/davecgh/go-spew v1.1.1
 	github.com/pkg/errors v0.9.1
 )
 

@@ -1,11 +1,18 @@
 package objects
 
 import (
+	"bytes"
+	"compress/zlib"
 	"crypto/sha1"
 	"flag"
 	"fmt"
 	"git.wntrmute.dev/kyle/goutils/die"
+	"git.wntrmute.dev/kyle/goutils/fileutil"
+	"github.com/kisom/codecrafters/git-go/paths"
+	"github.com/pkg/errors"
+	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -13,24 +20,25 @@ import (
 type entryMode int
 
 const (
-	modeRegular entryMode = (iota + 1) << 1
-	modeExecutable
-	modeSymbolic
-	modeDirectory
+	ModeRegular entryMode = (iota + 1) << 1
+	ModeExecutable
+	ModeSymbolic
+	ModeDirectory
 )
 
 var modeToString = map[entryMode]string{
-	modeRegular:    "100644",
-	modeExecutable: "100755",
-	modeSymbolic:   "120000",
-	modeDirectory:  "040000",
+	ModeRegular:    "100644",
+	ModeExecutable: "100755",
+	ModeSymbolic:   "120000",
+	ModeDirectory:  "40000",
 }
 
 var modeFromString = map[string]entryMode{
-	"100644": modeRegular,
-	"100755": modeExecutable,
-	"120000": modeSymbolic,
-	"040000": modeDirectory,
+	"100644": ModeRegular,
+	"100755": ModeExecutable,
+	"120000": ModeSymbolic,
+	"040000": ModeDirectory,
+	"40000":  ModeDirectory,
 }
 
 type TreeEntry struct {
@@ -73,13 +81,13 @@ type treeEntries []*TreeEntry
 func (e treeEntries) Len() int      { return len(e) }
 func (e treeEntries) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
 func (e treeEntries) Less(i, j int) bool {
-	if e[i].Mode != e[j].Mode {
-		if e[i].Mode == modeDirectory {
-			return true
-		} else if e[j].Mode == modeDirectory {
-			return false
-		}
-	}
+	//if e[i].Mode != e[j].Mode {
+	//	if e[i].Mode == ModeDirectory {
+	//		return true
+	//	} else if e[j].Mode == ModeDirectory {
+	//		return false
+	//	}
+	//}
 	return e[i].Name < e[j].Name
 }
 
@@ -87,8 +95,18 @@ type Tree struct {
 	entries treeEntries
 }
 
+func (tree *Tree) Add(entry *TreeEntry) {
+	for _, e := range tree.entries {
+		if e.Name == entry.Name {
+			return
+		}
+	}
+
+	tree.entries = append(tree.entries, entry)
+}
+
 func (tree *Tree) Hash() []byte {
-	hash := sha1.Sum(tree.rawEntries())
+	hash := sha1.Sum(tree.Raw())
 	return hash[:]
 }
 
@@ -134,6 +152,40 @@ func (tree *Tree) ObjectType() string {
 	return TypeTree
 }
 
+func (tree *Tree) Write() error {
+	path, err := paths.PathFromID(tree.HashString())
+	if err != nil {
+		return errors.Wrap(err, "while writing tree")
+	}
+
+	if fileutil.DirectoryDoesExist(path) {
+		return nil
+	}
+
+	parent := filepath.Dir(path)
+	if !fileutil.DirectoryDoesExist(parent) {
+		if err := os.MkdirAll(parent, 0755); err != nil {
+			return errors.Wrap(err, "while writing tree")
+		}
+	}
+
+	file, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "while writing tree")
+	}
+	defer file.Close()
+
+	encoder := zlib.NewWriter(file)
+	defer encoder.Close()
+
+	_, err = io.Copy(encoder, bytes.NewReader(tree.Raw()))
+	if err != nil {
+		return errors.Wrap(err, "while writing tree")
+	}
+
+	return nil
+}
+
 func scanEntries(contents []byte) []*TreeEntry {
 	line := []byte{}
 	entries := []*TreeEntry{}
@@ -145,9 +197,10 @@ func scanEntries(contents []byte) []*TreeEntry {
 		}
 
 		i++
+		fmt.Fprintf(os.Stderr, "%s\n", string(line))
 		entry := entryFromBytes(line, contents[i:i+20])
 		line = []byte{}
-		i += 20
+		i += 19
 		entries = append(entries, entry)
 	}
 
