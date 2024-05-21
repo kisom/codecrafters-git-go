@@ -15,6 +15,8 @@ func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	// fmt.Println("Logs from your program will appear here!")
 
+	fmt.Fprintf(os.Stderr, "Program invocation: %#v\n", os.Args)
+
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "usage: mygit <command> [<args>...]\n")
 		os.Exit(1)
@@ -23,6 +25,8 @@ func main() {
 	switch command := os.Args[1]; command {
 	case "cat-file":
 		objects.CatFile(os.Args[2:])
+	case "commit-tree":
+		objects.CommitTree(os.Args[2:])
 	case "hash-object":
 		objects.Hash(os.Args[2:])
 	case "ls-tree":

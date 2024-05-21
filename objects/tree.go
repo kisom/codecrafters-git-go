@@ -1,7 +1,6 @@
 package objects
 
 import (
-	"crypto/sha1"
 	"flag"
 	"fmt"
 	"git.wntrmute.dev/kyle/goutils/die"
@@ -98,13 +97,27 @@ func (tree *Tree) Add(entry *TreeEntry) {
 	tree.entries = append(tree.entries, entry)
 }
 
+func (tree *Tree) rawEntries() []byte {
+	var raw []byte
+	for _, entry := range tree.entries {
+		raw = append(raw, entry.Raw()...)
+	}
+	return raw
+}
+
+func (tree *Tree) blob() *Blob {
+	return &Blob{
+		Type:     TypeTree,
+		Contents: tree.rawEntries(),
+	}
+}
+
 func (tree *Tree) Hash() []byte {
-	hash := sha1.Sum(tree.Raw())
-	return hash[:]
+	return tree.blob().Hash()
 }
 
 func (tree *Tree) HashString() string {
-	return fmt.Sprintf("%0x", tree.Hash())
+	return tree.blob().HashString()
 }
 
 func (tree *Tree) String() string {
@@ -115,22 +128,12 @@ func (tree *Tree) String() string {
 	return s
 }
 
-func (tree *Tree) rawEntries() []byte {
-	var raw []byte
-	for _, entry := range tree.entries {
-		raw = append(raw, entry.Raw()...)
-	}
-	return raw
-}
-
 func (tree *Tree) Size() int {
 	return len(tree.rawEntries())
 }
 
 func (tree *Tree) Raw() []byte {
-	raw := []byte(fmt.Sprintf("tree %d\x00", tree.Size()))
-	raw = append(raw, tree.rawEntries()...)
-	return raw
+	return tree.blob().Raw()
 }
 
 func (tree *Tree) Names() string {
@@ -146,14 +149,7 @@ func (tree *Tree) ObjectType() string {
 }
 
 func (tree *Tree) Write() error {
-	blob := BlobFromBytes(tree.rawEntries())
-	blob.Type = TypeTree
-
-	if blob.HashString() != tree.HashString() {
-		fmt.Fprintf(os.Stderr, "tree.Write: blob hash %s != tree hash %s", blob.HashString(), tree.HashString())
-	}
-
-	return blob.Write()
+	return tree.blob().Write()
 }
 
 func scanEntries(contents []byte) []*TreeEntry {
