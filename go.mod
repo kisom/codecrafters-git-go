@@ -14,4 +14,7 @@ require (
 	github.com/pkg/errors v0.9.1
 )
 
-require golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
+require (
+	github.com/hashicorp/go-syslog v1.0.0 // indirect
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
+)

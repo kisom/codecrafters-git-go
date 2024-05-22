@@ -1,13 +1,14 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"git.wntrmute.dev/kyle/goutils/die"
+	"git.wntrmute.dev/kyle/goutils/log"
+	"os"
+
 	"github.com/kisom/codecrafters/git-go/git"
 	"github.com/kisom/codecrafters/git-go/objects"
-	"os"
-	// Uncomment this block to pass the first stage!
-	// "os"
 )
 
 // Usage: your_git.sh <command> <arg1> <arg2> ...
@@ -15,26 +16,33 @@ func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	// fmt.Println("Logs from your program will appear here!")
 
-	fmt.Fprintf(os.Stderr, "Program invocation: %#v\n", os.Args)
+	opts := log.DefaultOptions("mygit", false)
+	flag.StringVar(&opts.Level, "l", "info", "log level")
+	flag.Parse()
+	log.Setup(opts)
 
-	if len(os.Args) < 2 {
+	args := flag.Args()
+
+	if len(args) < 2 {
 		fmt.Fprintf(os.Stderr, "usage: mygit <command> [<args>...]\n")
 		os.Exit(1)
 	}
 
-	switch command := os.Args[1]; command {
+	switch command := args[0]; command {
 	case "cat-file":
-		objects.CatFile(os.Args[2:])
+		objects.CatFile(args[1:])
+	case "clone":
+		git.Clone(args[1:])
 	case "commit-tree":
-		objects.CommitTree(os.Args[2:])
+		objects.CommitTree(args[1:])
 	case "hash-object":
-		objects.Hash(os.Args[2:])
+		objects.Hash(args[1:])
 	case "ls-tree":
-		if len(os.Args) < 3 {
+		if len(args) < 3 {
 			fmt.Fprintf(os.Stderr, "usage: mygit <command> [<args>...]\n")
 			os.Exit(1)
 		}
-		objects.ListTree(os.Args[2:])
+		objects.ListTree(args[1:])
 	case "write-tree":
 		hash, err := git.WriteTree()
 		die.If(err)
