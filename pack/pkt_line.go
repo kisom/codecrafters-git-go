@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"regexp"
 	"strconv"
 
 	"github.com/pkg/errors"
 )
 
 // note: the git docs call this type "pkt-line," not "packet-line." The code
-// follows this convention.
+// follows this convention. Accordingly, it's not flush-packet it's flush-pkt
+// etc...
 
-var flushPkt = regexp.MustCompile(`0000$`)
+var flushPkt = []byte{0, 0, 0, 0}
 
 func readPktLine(r io.Reader) ([]byte, error) {
 	length := make([]byte, 4)
@@ -48,9 +48,9 @@ func readPktLine(r io.Reader) ([]byte, error) {
 	return bytes.TrimSpace(buf), nil
 }
 
-func writePacketLineString(line string) ([]byte, error) {
+func writePacketLineString(line string) []byte {
 	length := len(line)
 	length += 5
 
-	return []byte(fmt.Sprintf("%04x%s\n", length, line)), nil
+	return []byte(fmt.Sprintf("%04x%s\n", length, line))
 }

@@ -11,9 +11,16 @@ import (
 	"path"
 )
 
-const contentTypeServicePack = "application/x-git-upload-pack-advertisement"
+const (
+	serviceGitUploadPackAdvertisement = "git-upload-pack-advertisement"
+	serviceGitUploadPack              = "git-upload-pack"
+)
 
-func FetchReferenceAdvertisement(repo string) (*ReferenceAdvertisement, error) {
+func serviceContentType(service string) string {
+	return fmt.Sprintf("application/x-%s", service)
+}
+
+func normalizeRepoURL(repo string) (*url.URL, error) {
 	repoURL, err := url.Parse(repo)
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing repo URL")
@@ -23,12 +30,30 @@ func FetchReferenceAdvertisement(repo string) (*ReferenceAdvertisement, error) {
 		repoURL.Scheme = "https"
 	}
 
+	return repoURL, nil
+}
+
+func serviceURL(repo, service string) (string, error) {
+	repoURL, err := normalizeRepoURL(repo)
+	if err != nil {
+		return "", errors.Wrap(err, "normalizing repo URL")
+	}
+
 	repoURL.Path = path.Join(repoURL.Path, "info", "refs")
-	repoURL.RawQuery = "service=git-upload-pack"
+	repoURL.RawQuery = "service=" + service
 
-	log.Debugf("Fetching packfile from %s", repoURL.String())
+	log.Debugf("repo service URL: %s", repoURL.String())
 
-	resp, err := http.Get(repoURL.String())
+	return repoURL.String(), nil
+}
+
+func FetchReferenceAdvertisement(repo string) (*ReferenceAdvertisement, error) {
+	repoURL, err := serviceURL(repo, serviceGitUploadPackAdvertisement)
+	if err != nil {
+		return nil, errors.Wrap(err, "normalizing repo URL")
+	}
+
+	resp, err := http.Get(repoURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo packfile")
 	}
@@ -38,9 +63,9 @@ func FetchReferenceAdvertisement(repo string) (*ReferenceAdvertisement, error) {
 		return nil, fmt.Errorf("fetching repo packfile returned http status code %d", resp.StatusCode)
 	}
 
-	if resp.Header.Get("Content-Type") != contentTypeServicePack {
+	if resp.Header.Get("Content-Type") != serviceContentType(serviceGitUploadPack) {
 		return nil, fmt.Errorf("unsupported content type %q (expect %s)",
-			resp.Header.Get("Content-Type"), contentTypeServicePack)
+			resp.Header.Get("Content-Type"), serviceContentType(serviceGitUploadPack))
 	}
 
 	packfile, err := io.ReadAll(resp.Body)

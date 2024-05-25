@@ -18,6 +18,14 @@ type Reference struct {
 	Capabilities []string
 }
 
+func (ref *Reference) Want() []byte {
+	return writePacketLineString("want " + ref.ID)
+}
+
+func (ref *Reference) Have() []byte {
+	return writePacketLineString("have " + ref.ID)
+}
+
 type ReferenceAdvertisement struct {
 	References []*Reference
 }
@@ -46,6 +54,18 @@ func (ra *ReferenceAdvertisement) UnmarshalReader(r io.Reader) error {
 	}
 
 	return nil
+}
+
+func (ra *ReferenceAdvertisement) Want(w io.Writer) error {
+	for _, ref := range ra.References {
+		_, err := w.Write(ref.Want())
+		if err != nil {
+			return errors.Wrap(err, "writing reference advertisement")
+		}
+	}
+
+	_, err := w.Write(flushPkt)
+	return err
 }
 
 func (ra *ReferenceAdvertisement) readReferences(r io.Reader) error {

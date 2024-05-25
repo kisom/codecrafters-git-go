@@ -34,11 +34,7 @@ func TestWritePktLineString(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pktLine, err := writePacketLineString(string(payload))
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	pktLine := writePacketLineString(string(payload))
 	if !bytes.Equal(pktLine, expectedPktLine) {
 		t.Fatalf("invalid first line\n\texpected: '%s'\n\t    have: '%s'\n", expectedPktLine, pktLine)
 	}
